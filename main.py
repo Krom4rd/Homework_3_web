@@ -1,7 +1,7 @@
-import pathlib
 import shutil
+import pathlib
 from sys import argv
-
+from threading import Thread
 
 # Можливі формати файлів для пошуку
 FORMATS = {
@@ -20,7 +20,10 @@ def normalize(data):
         "a", "b", "v", "g", "d", "e", "e", "j", "z", "i", "j", "k", "l", "m", "n", "o", "p", "r", "s", "t", "u",
     "f", "h", "ts", "ch", "sh", "sch", "", "y", "", "e", "yu", "ya", "je", "i", "ji", "g"
     )
-    name, file_format = data.split('.')[0], data.split('.')[-1]
+    if len(data.split('.')) > 1:
+        name, file_format = data.split('.')[0], data.split('.')[-1]
+    else:
+        name, file_format = data.split('.')[0], ''
     result = ''
     for sumbol in name:
         if sumbol.lower() in CYRILLIC_SYMBOLS:
@@ -39,16 +42,9 @@ def normalize(data):
 def folder_creator_for_all_file_tipes(path:str):
     '''Створюємо папки в вказаному місці для сортування файлів'''
     # Також перевіривши чи таких ще не існує
-    if not pathlib.Path(str(path) +'\\images').exists():
-        pathlib.Path(str(path) + '\\images').mkdir()
-    if not pathlib.Path(str(path) + '\\video').exists():
-        pathlib.Path(str(path) + '\\video').mkdir()
-    if not pathlib.Path(str(path) + '\\textdoc').exists():
-        pathlib.Path(str(path) + '\\textdoc').mkdir()
-    if not pathlib.Path(str(path) + '\\music').exists():
-        pathlib.Path(str(path) + '\\music').mkdir()
-    if not pathlib.Path(str(path) + '\\archives').exists():
-        pathlib.Path(str(path) + '\\archives').mkdir()
+    for key, value in FORMATS.items():
+        if not pathlib.Path(f"{path}\\{key.lower()}").exists():
+            pathlib.Path(f"{path}\\{key.lower()}").mkdir()
     if not pathlib.Path(str(path) + '\\other').exists():
         pathlib.Path(str(path) + '\\other').mkdir()
 
@@ -77,23 +73,24 @@ def sorting(path, global_path = None):
             continue
         elif item.is_dir():
             if global_path is not None:
-                sorting(item, global_path)
+                thread = Thread(target=sorting, args=(item, global_path))
+                thread.start()
             else:
-                sorting(item, path)
+                thread = Thread(target=sorting, args=(item, path))
+                thread.start()
         else:
             file_format = str(item).split("\\")[-1].split('.')[-1]
             for key , value in FORMATS.items():
                 if global_path is None:
                     if file_format.upper() in value:
-                        new_name = rename(f"{path}\\{key}",str(item).split("\\")[-1])
+                        new_name = rename(f"{path}\\{key.lower()}",str(item).split("\\")[-1])
                         new_name = normalize(new_name)
-                        pathlib.Path(item).replace(f"{path}\\{key}\\{new_name}")
-                        break
+                        pathlib.Path(item).replace(f"{path}\\{key.lower()}\\{new_name}")
                 else:
                     if file_format.upper() in value:
-                        new_name = rename(f"{global_path}\\{key}",str(item).split("\\")[-1])
+                        new_name = rename(f"{global_path}\\{key.lower()}",str(item).split("\\")[-1])
                         new_name = normalize(new_name)
-                        pathlib.Path(item).replace(f"{global_path}\\{key}\\{new_name}")
+                        pathlib.Path(item).replace(f"{global_path}\\{key.lower()}\\{new_name}")
             if pathlib.Path(item).exists():
                 if global_path is None:
                     new_name = rename(f"{path}\\other",str(item).split("\\")[-1])
@@ -103,7 +100,6 @@ def sorting(path, global_path = None):
                     new_name = rename(f"{global_path}\\other",str(item).split("\\")[-1])
                     new_name = normalize(new_name)
                     pathlib.Path(item).replace(f"{global_path}\\other\\{new_name}")
-
 
 def unpacking_archive(file):
     # Відділяє формат файлу від загальної назви щоб в подпльшому назвати папку такою ж назвою як файл але без формату у кінці назви
@@ -126,10 +122,10 @@ def main(path):
         delete_empty_folder(path)
         if pathlib.Path(f"{path}\\archives").exists():
             for file in pathlib.Path(f"{path}\\archives").iterdir():
-                unpacking_archive(file)
+                thread = Thread(target=unpacking_archive, args=(file,))
+                thread.start()
             delete_empty_folder(path)
         print(f"Files in {path} sorted")
-
 
 def terminal_starter():
     # Обробляємо помилку якщо було передано неправильні значення для запуску програми
@@ -142,6 +138,6 @@ def terminal_starter():
         print('After name of file sort.py must be path to folder what you want sorting')
 
 
-
+# main(r'C:\Users\Administrator\Desktop\sort_folder')
 
 
